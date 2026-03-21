@@ -112,15 +112,16 @@
     -webkit-backdrop-filter: blur(16px);
   }
 
-  .mode-row {
+  .options-row {
     display: flex;
     gap: 8px;
     margin-bottom: 16px;
     width: 100%;
     justify-content: center;
+    flex-wrap: wrap;
   }
 
-  .mode-btn {
+  .opt-btn {
     font-family: 'DM Sans', sans-serif;
     font-size: 13px;
     font-weight: 500;
@@ -132,12 +133,25 @@
     cursor: pointer;
     transition: background 0.15s, color 0.15s, border-color 0.15s;
     -webkit-tap-highlight-color: transparent;
+    display: flex;
+    align-items: center;
+    gap: 6px;
   }
 
-  .mode-btn.active {
+  .opt-btn.active {
     background: rgba(108,142,239,0.15);
     color: var(--accent);
     border-color: rgba(108,142,239,0.3);
+  }
+
+  .opt-btn svg {
+    width: 15px;
+    height: 15px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
   }
 
   .staff-wrap {
@@ -156,7 +170,8 @@
     display: flex;
     align-items: baseline;
     gap: 4px;
-    transition: color 0.2s;
+    transition: color 0.2s, opacity 0.2s;
+    min-height: 52px;
   }
 
   .note-name {
@@ -170,6 +185,15 @@
     font-size: 18px;
     color: var(--text-dim);
     font-family: 'DM Mono', monospace;
+  }
+
+  .note-hidden {
+    font-family: 'DM Mono', monospace;
+    font-size: 44px;
+    font-weight: 500;
+    line-height: 1;
+    color: rgba(255,255,255,0.08);
+    user-select: none;
   }
 
   .feedback-text {
@@ -292,6 +316,7 @@ const STRINGS = {
     subtitle: "Alto Saxophone",
     natural: "Natural",
     chromatic: "Chromatic",
+    showName: "Name",
     play: "Play the note\u2026",
     pressStart: "Press Start to begin",
     correct: "Correct!",
@@ -308,6 +333,7 @@ const STRINGS = {
     subtitle: "\u0410\u043B\u044C\u0442-\u0441\u0430\u043A\u0441\u043E\u0444\u043E\u043D",
     natural: "\u041D\u0430\u0442\u0443\u0440\u0430\u043B\u044C\u043D\u044B\u0435",
     chromatic: "\u0425\u0440\u043E\u043C\u0430\u0442\u0438\u043A\u0430",
+    showName: "\u041D\u043E\u0442\u0430",
     play: "\u0421\u044B\u0433\u0440\u0430\u0439 \u043D\u043E\u0442\u0443\u2026",
     pressStart: "\u041D\u0430\u0436\u043C\u0438 \u0421\u0442\u0430\u0440\u0442",
     correct: "\u041F\u0440\u0430\u0432\u0438\u043B\u044C\u043D\u043E!",
@@ -331,7 +357,6 @@ const STABILITY_FRAMES = 8;
 function playSound(type) {
   const ctx = new (window.AudioContext || window.webkitAudioContext)();
   const now = ctx.currentTime;
-
   if (type === "correct") {
     const osc1 = ctx.createOscillator();
     const osc2 = ctx.createOscillator();
@@ -373,29 +398,23 @@ function autoCorrelate(buf, sr) {
   for (let i = 0; i < n; i++) rms += buf[i] * buf[i];
   rms = Math.sqrt(rms / n);
   if (rms < 0.012) return -1;
-
   const corr = new Float32Array(n);
   for (let i = 0; i < n; i++) {
     let sum = 0;
     for (let j = 0; j < n - i; j++) sum += buf[j] * buf[j + i];
     corr[i] = sum;
   }
-
   let d = 0;
   while (d < n - 1 && corr[d] > corr[d + 1]) d++;
-
   let maxVal = -1, maxPos = d;
   for (let i = d; i < n; i++) {
     if (corr[i] > maxVal) { maxVal = corr[i]; maxPos = i; }
   }
-
   if (maxPos <= 0 || maxPos >= n - 1) return sr / maxPos;
-
   const x1 = corr[maxPos - 1], x2 = corr[maxPos], x3 = corr[maxPos + 1];
   const a = (x1 + x3 - 2 * x2) / 2;
   const b = (x3 - x1) / 2;
   const shift = a ? -b / (2 * a) : 0;
-
   return sr / (maxPos + shift);
 }
 
@@ -440,48 +459,44 @@ function Staff({ midi, feedback, detectedMidi, noteNames }) {
       {lines.map((p, i) => (
         <line key={i} x1="40" y1={yOf(p)} x2="305" y2={yOf(p)} stroke="#c0c0c0" strokeWidth="0.8" />
       ))}
-
       <text x="42" y={yOf(1) + 8} fontSize="80" fill="#888" fontFamily="Noto Music, serif" style={{userSelect:'none'}}>
         {"\u{1D11E}"}
       </text>
-
       {ledgers.map((p, i) => (
         <line key={`l${i}`} x1="160" y1={yOf(p)} x2="212" y2={yOf(p)} stroke="#c0c0c0" strokeWidth="0.8" />
       ))}
-
       {sharp && (
         <text x="155" y={noteY + 7} fontSize="22" fill={col} fontFamily="Noto Music, serif" style={{userSelect:'none'}}>
           {"\u266F"}
         </text>
       )}
-
-      <ellipse
-        cx="186" cy={noteY} rx="10.5" ry="7"
-        fill={col}
-        transform={`rotate(-12,186,${noteY})`}
-      />
+      <ellipse cx="186" cy={noteY} rx="10.5" ry="7" fill={col} transform={`rotate(-12,186,${noteY})`} />
       {stemUp ? (
         <line x1="196" y1={noteY - 1} x2="196" y2={noteY - 46} stroke={col} strokeWidth="1.8" />
       ) : (
         <line x1="176" y1={noteY + 1} x2="176" y2={noteY + 46} stroke={col} strokeWidth="1.8" />
       )}
-
       {feedback === "wrong" && detectedMidi != null && detectedMidi !== midi && (
         <>
           {detLedgers.map((p, i) => (
             <line key={`dl${i}`} x1="242" y1={yOf(p)} x2="280" y2={yOf(p)} stroke="#ddd" strokeWidth="0.6" />
           ))}
-          <ellipse
-            cx="261" cy={detY} rx="9" ry="6"
-            fill="none" stroke="#EF6C6C" strokeWidth="1.2" opacity="0.45"
-            transform={`rotate(-12,261,${detY})`}
-          />
+          <ellipse cx="261" cy={detY} rx="9" ry="6" fill="none" stroke="#EF6C6C" strokeWidth="1.2" opacity="0.45" transform={`rotate(-12,261,${detY})`} />
           <text x="280" y={detY + 5} fontSize="12" fill="#EF6C6C" opacity="0.6" fontFamily="DM Sans, sans-serif">
             {noteNames[detectedMidi % 12]}
           </text>
         </>
       )}
     </svg>
+  );
+}
+
+function EyeIcon({ open }) {
+  if (open) return (
+    <svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>
+  );
+  return (
+    <svg viewBox="0 0 24 24"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
   );
 }
 
@@ -493,6 +508,7 @@ function pickRandom(arr, exclude) {
 function App() {
   const [lang, setLang] = useState(() => localStorage.getItem("sax-lang") || "en");
   const [mode, setMode] = useState(() => localStorage.getItem("sax-mode") || "natural");
+  const [showName, setShowName] = useState(() => localStorage.getItem("sax-showname") !== "false");
   const [note, setNote] = useState(() => NATURAL_NOTES[Math.floor(Math.random() * NATURAL_NOTES.length)]);
   const [listening, setListening] = useState(false);
   const [feedback, setFeedback] = useState(null);
@@ -520,25 +536,23 @@ function App() {
   const noteNames = lang === "ru" ? NOTES_RU : NOTES_EN;
   const t = STRINGS[lang];
 
-  const pool = mode === "chromatic" ? CHROMATIC_NOTES : NATURAL_NOTES;
-
-  const changeLang = (l) => {
-    setLang(l);
-    localStorage.setItem("sax-lang", l);
-  };
+  const changeLang = (l) => { setLang(l); localStorage.setItem("sax-lang", l); };
 
   const changeMode = (m) => {
     setMode(m);
     localStorage.setItem("sax-mode", m);
     const p = m === "chromatic" ? CHROMATIC_NOTES : NATURAL_NOTES;
     setNote(pickRandom(p, note));
-    setFeedback(null);
-    setDetWritten(null);
-    setCents(null);
-    setAnimClass("");
-    stableRef.current = 0;
-    lastRef.current = null;
-    lockRef.current = false;
+    setFeedback(null); setDetWritten(null); setCents(null); setAnimClass("");
+    stableRef.current = 0; lastRef.current = null; lockRef.current = false;
+  };
+
+  const toggleShowName = () => {
+    setShowName(prev => {
+      const next = !prev;
+      localStorage.setItem("sax-showname", String(next));
+      return next;
+    });
   };
 
   const detect = useCallback(() => {
@@ -546,75 +560,46 @@ function App() {
       rafRef.current = requestAnimationFrame(detect);
       return;
     }
-
     const analyser = anlRef.current;
     const buf = new Float32Array(analyser.fftSize);
     analyser.getFloatTimeDomainData(buf);
-
     let rms = 0;
     for (let i = 0; i < buf.length; i++) rms += buf[i] * buf[i];
     rms = Math.sqrt(rms / buf.length);
     setLevel(Math.min(rms * 8, 1));
-
     const freq = autoCorrelate(buf, ctxRef.current.sampleRate);
-
     if (freq > 60 && freq < 2000) {
       const rawMidi = freqToMidi(freq);
       const rounded = Math.round(rawMidi);
       const written = rounded + ALTO_TRANSPOSE;
       const c = Math.round((rawMidi - rounded) * 100);
-
-      if (rounded === lastRef.current) {
-        stableRef.current++;
-      } else {
-        stableRef.current = 1;
-        lastRef.current = rounded;
-      }
-
+      if (rounded === lastRef.current) { stableRef.current++; }
+      else { stableRef.current = 1; lastRef.current = rounded; }
       if (stableRef.current >= STABILITY_FRAMES) {
         lockRef.current = true;
-        setDetWritten(written);
-        setCents(c);
-
+        setDetWritten(written); setCents(c);
         const ok = written === noteRef.current;
-
         if (ok) {
-          setFeedback("correct");
-          setAnimClass("anim-correct");
-          playSound("correct");
+          setFeedback("correct"); setAnimClass("anim-correct"); playSound("correct");
           setStreak(s => { const ns = s + 1; setBest(b => Math.max(b, ns)); return ns; });
           setCorrect(cc => cc + 1);
         } else {
-          setFeedback("wrong");
-          setAnimClass("anim-wrong");
-          playSound("wrong");
+          setFeedback("wrong"); setAnimClass("anim-wrong"); playSound("wrong");
           setStreak(0);
         }
         setTotal(tt => tt + 1);
-
         setTimeout(() => {
           if (ok) {
             const p = modeRef.current === "chromatic" ? CHROMATIC_NOTES : NATURAL_NOTES;
             setNote(prev => pickRandom(p, prev));
-            setFeedback(null);
-            setDetWritten(null);
-            setCents(null);
-            setAnimClass("");
-            stableRef.current = 0;
-            lastRef.current = null;
-            lockRef.current = false;
+            setFeedback(null); setDetWritten(null); setCents(null); setAnimClass("");
+            stableRef.current = 0; lastRef.current = null; lockRef.current = false;
           } else {
-            lockRef.current = false;
-            stableRef.current = 0;
-            lastRef.current = null;
+            lockRef.current = false; stableRef.current = 0; lastRef.current = null;
           }
         }, ok ? 900 : 1800);
       }
-    } else {
-      stableRef.current = 0;
-      lastRef.current = null;
-    }
-
+    } else { stableRef.current = 0; lastRef.current = null; }
     rafRef.current = requestAnimationFrame(detect);
   }, []);
 
@@ -628,19 +613,9 @@ function App() {
       const analyser = ctx.createAnalyser();
       analyser.fftSize = 4096;
       src.connect(analyser);
-
-      ctxRef.current = ctx;
-      anlRef.current = analyser;
-      strRef.current = stream;
-
-      setListening(true);
-      setFeedback(null);
-      setDetWritten(null);
-      setAnimClass("");
-      stableRef.current = 0;
-      lastRef.current = null;
-      lockRef.current = false;
-
+      ctxRef.current = ctx; anlRef.current = analyser; strRef.current = stream;
+      setListening(true); setFeedback(null); setDetWritten(null); setAnimClass("");
+      stableRef.current = 0; lastRef.current = null; lockRef.current = false;
       rafRef.current = requestAnimationFrame(detect);
     } catch (e) {
       alert(lang === "ru"
@@ -653,11 +628,8 @@ function App() {
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
     if (strRef.current) strRef.current.getTracks().forEach(t => t.stop());
     if (ctxRef.current) ctxRef.current.close();
-    ctxRef.current = null;
-    anlRef.current = null;
-    strRef.current = null;
-    setListening(false);
-    setLevel(0);
+    ctxRef.current = null; anlRef.current = null; strRef.current = null;
+    setListening(false); setLevel(0);
   }, []);
 
   useEffect(() => () => {
@@ -671,14 +643,16 @@ function App() {
   const pct = total > 0 ? Math.round((correct / total) * 100) : 0;
   const noteColor = feedback === "correct" ? "var(--correct)" : feedback === "wrong" ? "var(--wrong)" : "var(--text)";
 
-  let fbText = "";
-  let fbClass = "waiting";
+  const shouldReveal = feedback != null && !showName;
+
+  let fbText = ""; let fbClass = "waiting";
   if (feedback === "correct") {
-    fbText = t.correct;
+    fbText = showName ? t.correct : `${name} \u2014 ${t.correct}`;
     fbClass = "correct";
   } else if (feedback === "wrong" && detWritten != null) {
     const played = noteNames[detWritten % 12];
-    fbText = `${t.youPlayed} ${played}` + (cents != null && cents !== 0 ? ` (${cents > 0 ? "+" : ""}${cents}\u00A2)` : "");
+    const expected = showName ? "" : ` (${name})`;
+    fbText = `${t.youPlayed} ${played}${expected}` + (cents != null && cents !== 0 ? ` (${cents > 0 ? "+" : ""}${cents}\u00A2)` : "");
     fbClass = "wrong";
   } else if (listening) {
     fbText = t.play;
@@ -698,9 +672,13 @@ function App() {
       <div className="subtitle">{t.subtitle}</div>
 
       <div className={`card ${animClass}`}>
-        <div className="mode-row">
-          <button className={`mode-btn ${mode === "natural" ? "active" : ""}`} onClick={() => changeMode("natural")}>{t.natural}</button>
-          <button className={`mode-btn ${mode === "chromatic" ? "active" : ""}`} onClick={() => changeMode("chromatic")}>{t.chromatic}</button>
+        <div className="options-row">
+          <button className={`opt-btn ${mode === "natural" ? "active" : ""}`} onClick={() => changeMode("natural")}>{t.natural}</button>
+          <button className={`opt-btn ${mode === "chromatic" ? "active" : ""}`} onClick={() => changeMode("chromatic")}>{t.chromatic}</button>
+          <button className={`opt-btn ${showName ? "active" : ""}`} onClick={toggleShowName}>
+            <EyeIcon open={showName} />
+            {t.showName}
+          </button>
         </div>
 
         <div className="staff-wrap">
@@ -708,8 +686,14 @@ function App() {
         </div>
 
         <div className="note-display" style={{ color: noteColor }}>
-          <span className="note-name">{name}</span>
-          <span className="note-oct" style={{ color: feedback ? noteColor : undefined }}>{oct}</span>
+          {showName || shouldReveal ? (
+            <>
+              <span className="note-name">{name}</span>
+              <span className="note-oct" style={{ color: feedback ? noteColor : undefined }}>{oct}</span>
+            </>
+          ) : (
+            <span className="note-hidden">?</span>
+          )}
         </div>
 
         <div className={`feedback-text ${fbClass}`}>{fbText}</div>
@@ -733,13 +717,8 @@ function App() {
             <button className="btn btn-secondary" onClick={() => {
               const p = modeRef.current === "chromatic" ? CHROMATIC_NOTES : NATURAL_NOTES;
               setNote(prev => pickRandom(p, prev));
-              setFeedback(null);
-              setDetWritten(null);
-              setCents(null);
-              setAnimClass("");
-              stableRef.current = 0;
-              lastRef.current = null;
-              lockRef.current = false;
+              setFeedback(null); setDetWritten(null); setCents(null); setAnimClass("");
+              stableRef.current = 0; lastRef.current = null; lockRef.current = false;
             }}>{t.skip}</button>
           </>
         )}
