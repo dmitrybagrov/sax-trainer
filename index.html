@@ -53,12 +53,40 @@
     align-items: center;
   }
 
+  .header { display: flex; align-items: center; gap: 12px; }
+
   h1 {
     font-size: 20px;
     font-weight: 600;
     letter-spacing: 0.04em;
     text-transform: uppercase;
     color: var(--text);
+  }
+
+  .lang-toggle {
+    display: flex;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .lang-btn {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 5px 10px;
+    border: none;
+    background: transparent;
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .lang-btn.active {
+    background: rgba(108,142,239,0.2);
+    color: var(--accent);
   }
 
   .subtitle {
@@ -82,6 +110,34 @@
     margin-top: 24px;
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
+  }
+
+  .mode-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .mode-btn {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 7px 16px;
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.1);
+    background: transparent;
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .mode-btn.active {
+    background: rgba(108,142,239,0.15);
+    color: var(--accent);
+    border-color: rgba(108,142,239,0.3);
   }
 
   .staff-wrap {
@@ -228,9 +284,48 @@
 <script type="text/babel">
 const { useState, useEffect, useRef, useCallback } = React;
 
-const ITALIAN = ["Do","Do#","Re","Re#","Mi","Fa","Fa#","Sol","Sol#","La","La#","Si"];
+const NOTES_EN = ["Do","Do#","Re","Re#","Mi","Fa","Fa#","Sol","Sol#","La","La#","Si"];
+const NOTES_RU = ["\u0414\u043E","\u0414\u043E#","\u0420\u0435","\u0420\u0435#","\u041C\u0438","\u0424\u0430","\u0424\u0430#","\u0421\u043E\u043B\u044C","\u0421\u043E\u043B\u044C#","\u041B\u044F","\u041B\u044F#","\u0421\u0438"];
+
+const STRINGS = {
+  en: {
+    subtitle: "Alto Saxophone",
+    natural: "Natural",
+    chromatic: "Chromatic",
+    play: "Play the note\u2026",
+    pressStart: "Press Start to begin",
+    correct: "Correct!",
+    youPlayed: "You played",
+    streak: "Streak",
+    best: "Best",
+    accuracy: "Accuracy",
+    score: "Score",
+    start: "Start",
+    stop: "Stop",
+    skip: "Skip",
+  },
+  ru: {
+    subtitle: "\u0410\u043B\u044C\u0442-\u0441\u0430\u043A\u0441\u043E\u0444\u043E\u043D",
+    natural: "\u041D\u0430\u0442\u0443\u0440\u0430\u043B\u044C\u043D\u044B\u0435",
+    chromatic: "\u0425\u0440\u043E\u043C\u0430\u0442\u0438\u043A\u0430",
+    play: "\u0421\u044B\u0433\u0440\u0430\u0439 \u043D\u043E\u0442\u0443\u2026",
+    pressStart: "\u041D\u0430\u0436\u043C\u0438 \u0421\u0442\u0430\u0440\u0442",
+    correct: "\u041F\u0440\u0430\u0432\u0438\u043B\u044C\u043D\u043E!",
+    youPlayed: "\u0422\u044B \u0441\u044B\u0433\u0440\u0430\u043B",
+    streak: "\u0421\u0435\u0440\u0438\u044F",
+    best: "\u041B\u0443\u0447\u0448.",
+    accuracy: "\u0422\u043E\u0447\u043D.",
+    score: "\u0421\u0447\u0451\u0442",
+    start: "\u0421\u0442\u0430\u0440\u0442",
+    stop: "\u0421\u0442\u043E\u043F",
+    skip: "\u0414\u0430\u043B\u044C\u0448\u0435",
+  }
+};
+
 const ALTO_TRANSPOSE = 9;
-const PRACTICE_NOTES = [60,62,64,65,67,69,71,72,74,76,77,79];
+const NATURAL_NOTES = [60,62,64,65,67,69,71,72,74,76,77,79];
+const CHROMATIC_NOTES = [];
+for (let i = 60; i <= 79; i++) CHROMATIC_NOTES.push(i);
 const STABILITY_FRAMES = 8;
 
 function playSound(type) {
@@ -241,18 +336,14 @@ function playSound(type) {
     const osc1 = ctx.createOscillator();
     const osc2 = ctx.createOscillator();
     const gain = ctx.createGain();
-
     osc1.type = "sine";
     osc1.frequency.setValueAtTime(880, now);
     osc1.frequency.setValueAtTime(1108.73, now + 0.1);
-
     osc2.type = "sine";
     osc2.frequency.setValueAtTime(1108.73, now);
     osc2.frequency.setValueAtTime(1318.51, now + 0.1);
-
     gain.gain.setValueAtTime(0.15, now);
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
-
     osc1.connect(gain);
     osc2.connect(gain);
     gain.connect(ctx.destination);
@@ -263,20 +354,16 @@ function playSound(type) {
   } else {
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
-
     osc.type = "square";
     osc.frequency.setValueAtTime(220, now);
     osc.frequency.linearRampToValueAtTime(160, now + 0.2);
-
     gain.gain.setValueAtTime(0.08, now);
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
-
     osc.connect(gain);
     gain.connect(ctx.destination);
     osc.start(now);
     osc.stop(now + 0.25);
   }
-
   setTimeout(() => ctx.close(), 500);
 }
 
@@ -322,7 +409,7 @@ function staffPos(midi) {
 
 function isSharp(midi) { return [1,3,6,8,10].includes(midi % 12); }
 
-function Staff({ midi, feedback, detectedMidi }) {
+function Staff({ midi, feedback, detectedMidi, noteNames }) {
   const pos = staffPos(midi);
   const SP = 8;
   const yOf = (p) => 130 - p * SP;
@@ -363,7 +450,7 @@ function Staff({ midi, feedback, detectedMidi }) {
       ))}
 
       {sharp && (
-        <text x="157" y={noteY + 7} fontSize="22" fill={col} fontFamily="Noto Music, serif" style={{userSelect:'none'}}>
+        <text x="155" y={noteY + 7} fontSize="22" fill={col} fontFamily="Noto Music, serif" style={{userSelect:'none'}}>
           {"\u266F"}
         </text>
       )}
@@ -390,7 +477,7 @@ function Staff({ midi, feedback, detectedMidi }) {
             transform={`rotate(-12,261,${detY})`}
           />
           <text x="280" y={detY + 5} fontSize="12" fill="#EF6C6C" opacity="0.6" fontFamily="DM Sans, sans-serif">
-            {ITALIAN[detectedMidi % 12]}
+            {noteNames[detectedMidi % 12]}
           </text>
         </>
       )}
@@ -404,7 +491,9 @@ function pickRandom(arr, exclude) {
 }
 
 function App() {
-  const [note, setNote] = useState(() => PRACTICE_NOTES[Math.floor(Math.random() * PRACTICE_NOTES.length)]);
+  const [lang, setLang] = useState(() => localStorage.getItem("sax-lang") || "en");
+  const [mode, setMode] = useState(() => localStorage.getItem("sax-mode") || "natural");
+  const [note, setNote] = useState(() => NATURAL_NOTES[Math.floor(Math.random() * NATURAL_NOTES.length)]);
   const [listening, setListening] = useState(false);
   const [feedback, setFeedback] = useState(null);
   const [detWritten, setDetWritten] = useState(null);
@@ -424,10 +513,25 @@ function App() {
   const lastRef = useRef(null);
   const lockRef = useRef(false);
   const noteRef = useRef(note);
+  const modeRef = useRef(mode);
   noteRef.current = note;
+  modeRef.current = mode;
 
-  const nextNote = useCallback(() => {
-    setNote(prev => pickRandom(PRACTICE_NOTES, prev));
+  const noteNames = lang === "ru" ? NOTES_RU : NOTES_EN;
+  const t = STRINGS[lang];
+
+  const pool = mode === "chromatic" ? CHROMATIC_NOTES : NATURAL_NOTES;
+
+  const changeLang = (l) => {
+    setLang(l);
+    localStorage.setItem("sax-lang", l);
+  };
+
+  const changeMode = (m) => {
+    setMode(m);
+    localStorage.setItem("sax-mode", m);
+    const p = m === "chromatic" ? CHROMATIC_NOTES : NATURAL_NOTES;
+    setNote(pickRandom(p, note));
     setFeedback(null);
     setDetWritten(null);
     setCents(null);
@@ -435,7 +539,7 @@ function App() {
     stableRef.current = 0;
     lastRef.current = null;
     lockRef.current = false;
-  }, []);
+  };
 
   const detect = useCallback(() => {
     if (!anlRef.current || lockRef.current) {
@@ -486,11 +590,12 @@ function App() {
           playSound("wrong");
           setStreak(0);
         }
-        setTotal(t => t + 1);
+        setTotal(tt => tt + 1);
 
         setTimeout(() => {
           if (ok) {
-            setNote(prev => pickRandom(PRACTICE_NOTES, prev));
+            const p = modeRef.current === "chromatic" ? CHROMATIC_NOTES : NATURAL_NOTES;
+            setNote(prev => pickRandom(p, prev));
             setFeedback(null);
             setDetWritten(null);
             setCents(null);
@@ -538,9 +643,11 @@ function App() {
 
       rafRef.current = requestAnimationFrame(detect);
     } catch (e) {
-      alert("Microphone access is needed for this app to work. Please allow it and try again.");
+      alert(lang === "ru"
+        ? "\u0422\u0440\u0435\u0431\u0443\u0435\u0442\u0441\u044F \u0434\u043E\u0441\u0442\u0443\u043F \u043A \u043C\u0438\u043A\u0440\u043E\u0444\u043E\u043D\u0443. \u0420\u0430\u0437\u0440\u0435\u0448\u0438\u0442\u0435 \u0438 \u043F\u043E\u043F\u0440\u043E\u0431\u0443\u0439\u0442\u0435 \u0441\u043D\u043E\u0432\u0430."
+        : "Microphone access is needed. Please allow it and try again.");
     }
-  }, [detect]);
+  }, [detect, lang]);
 
   const stop = useCallback(() => {
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
@@ -559,35 +666,45 @@ function App() {
     if (ctxRef.current) ctxRef.current.close();
   }, []);
 
-  const name = ITALIAN[note % 12];
+  const name = noteNames[note % 12];
   const oct = Math.floor(note / 12) - 1;
   const pct = total > 0 ? Math.round((correct / total) * 100) : 0;
-
   const noteColor = feedback === "correct" ? "var(--correct)" : feedback === "wrong" ? "var(--wrong)" : "var(--text)";
 
   let fbText = "";
   let fbClass = "waiting";
   if (feedback === "correct") {
-    fbText = "Correct!";
+    fbText = t.correct;
     fbClass = "correct";
   } else if (feedback === "wrong" && detWritten != null) {
-    const played = ITALIAN[detWritten % 12];
-    fbText = `You played ${played}` + (cents != null && cents !== 0 ? ` (${cents > 0 ? "+" : ""}${cents}\u00A2)` : "");
+    const played = noteNames[detWritten % 12];
+    fbText = `${t.youPlayed} ${played}` + (cents != null && cents !== 0 ? ` (${cents > 0 ? "+" : ""}${cents}\u00A2)` : "");
     fbClass = "wrong";
   } else if (listening) {
-    fbText = "Play the note\u2026";
+    fbText = t.play;
   } else {
-    fbText = "Press Start to begin";
+    fbText = t.pressStart;
   }
 
   return (
     <>
-      <h1>Sax Trainer</h1>
-      <div className="subtitle">Alto Saxophone</div>
+      <div className="header">
+        <h1>Sax Trainer</h1>
+        <div className="lang-toggle">
+          <button className={`lang-btn ${lang === "en" ? "active" : ""}`} onClick={() => changeLang("en")}>EN</button>
+          <button className={`lang-btn ${lang === "ru" ? "active" : ""}`} onClick={() => changeLang("ru")}>RU</button>
+        </div>
+      </div>
+      <div className="subtitle">{t.subtitle}</div>
 
       <div className={`card ${animClass}`}>
+        <div className="mode-row">
+          <button className={`mode-btn ${mode === "natural" ? "active" : ""}`} onClick={() => changeMode("natural")}>{t.natural}</button>
+          <button className={`mode-btn ${mode === "chromatic" ? "active" : ""}`} onClick={() => changeMode("chromatic")}>{t.chromatic}</button>
+        </div>
+
         <div className="staff-wrap">
-          <Staff midi={note} feedback={feedback} detectedMidi={detWritten} />
+          <Staff midi={note} feedback={feedback} detectedMidi={detWritten} noteNames={noteNames} />
         </div>
 
         <div className="note-display" style={{ color: noteColor }}>
@@ -609,11 +726,21 @@ function App() {
 
       <div className="controls">
         {!listening ? (
-          <button className="btn btn-primary" onClick={start}>Start</button>
+          <button className="btn btn-primary" onClick={start}>{t.start}</button>
         ) : (
           <>
-            <button className="btn btn-secondary" onClick={stop}>Stop</button>
-            <button className="btn btn-secondary" onClick={nextNote}>Skip</button>
+            <button className="btn btn-secondary" onClick={stop}>{t.stop}</button>
+            <button className="btn btn-secondary" onClick={() => {
+              const p = modeRef.current === "chromatic" ? CHROMATIC_NOTES : NATURAL_NOTES;
+              setNote(prev => pickRandom(p, prev));
+              setFeedback(null);
+              setDetWritten(null);
+              setCents(null);
+              setAnimClass("");
+              stableRef.current = 0;
+              lastRef.current = null;
+              lockRef.current = false;
+            }}>{t.skip}</button>
           </>
         )}
       </div>
@@ -622,19 +749,19 @@ function App() {
         <div className="stats">
           <div className="stat">
             <div className="stat-val">{streak}</div>
-            <div className="stat-label">Streak</div>
+            <div className="stat-label">{t.streak}</div>
           </div>
           <div className="stat">
             <div className="stat-val">{best}</div>
-            <div className="stat-label">Best</div>
+            <div className="stat-label">{t.best}</div>
           </div>
           <div className="stat">
             <div className="stat-val">{pct}%</div>
-            <div className="stat-label">Accuracy</div>
+            <div className="stat-label">{t.accuracy}</div>
           </div>
           <div className="stat">
             <div className="stat-val">{correct}/{total}</div>
-            <div className="stat-label">Score</div>
+            <div className="stat-label">{t.score}</div>
           </div>
         </div>
       )}
