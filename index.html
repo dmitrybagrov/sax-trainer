@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Sax Trainer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #0c0c14;
+    --card: rgba(255,255,255,0.035);
+    --card-border: rgba(255,255,255,0.07);
+    --text: #e8e8ec;
+    --text-dim: #6b6b80;
+    --accent: #6C8EEF;
+    --correct: #3ECF8E;
+    --wrong: #EF6C6C;
+    --staff-bg: #fafafa;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', system-ui, sans-serif;
+    min-height: 100dvh;
+    display: flex;
+    justify-content: center;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 600px 400px at 20% 10%, rgba(108,142,239,0.06), transparent),
+      radial-gradient(ellipse 500px 500px at 80% 90%, rgba(62,207,142,0.04), transparent);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  #root {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 520px;
+    padding: 28px 20px 40px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  h1 {
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text);
+  }
+
+  .subtitle {
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-top: 2px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 20px;
+    padding: 24px 20px 20px;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 24px;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+
+  .staff-wrap {
+    background: var(--staff-bg);
+    border-radius: 14px;
+    padding: 20px 16px 14px;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+  }
+
+  .staff-wrap svg { width: 100%; max-width: 480px; }
+
+  .note-display {
+    margin-top: 18px;
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+    transition: color 0.2s;
+  }
+
+  .note-name {
+    font-family: 'DM Mono', monospace;
+    font-size: 44px;
+    font-weight: 500;
+    line-height: 1;
+  }
+
+  .note-oct {
+    font-size: 18px;
+    color: var(--text-dim);
+    font-family: 'DM Mono', monospace;
+  }
+
+  .feedback-text {
+    font-size: 14px;
+    font-weight: 500;
+    margin-top: 4px;
+    min-height: 20px;
+    transition: color 0.15s;
+  }
+
+  .feedback-text.correct { color: var(--correct); }
+  .feedback-text.wrong { color: var(--wrong); }
+  .feedback-text.waiting { color: var(--text-dim); }
+
+  .mic-bar-wrap {
+    width: 75%;
+    height: 3px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 2px;
+    margin-top: 16px;
+    overflow: hidden;
+  }
+
+  .mic-bar {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.06s linear;
+    background: var(--accent);
+  }
+
+  .controls {
+    display: flex;
+    gap: 10px;
+    margin-top: 24px;
+  }
+
+  .btn {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+    border: none;
+    border-radius: 14px;
+    padding: 14px 36px;
+    cursor: pointer;
+    transition: transform 0.1s, box-shadow 0.15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .btn:active { transform: scale(0.97); }
+
+  .btn-primary {
+    background: linear-gradient(135deg, #6C8EEF, #5A7DE8);
+    color: #fff;
+    box-shadow: 0 4px 24px rgba(108,142,239,0.28);
+  }
+
+  .btn-secondary {
+    background: rgba(255,255,255,0.06);
+    color: #aaa;
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+
+  .stats {
+    display: flex;
+    gap: 28px;
+    margin-top: 28px;
+  }
+
+  .stat { text-align: center; }
+
+  .stat-val {
+    font-family: 'DM Mono', monospace;
+    font-size: 22px;
+    font-weight: 500;
+    color: var(--text);
+  }
+
+  .stat-label {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 2px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 500;
+  }
+
+  @keyframes pulse-correct {
+    0% { box-shadow: 0 0 0 0 rgba(62,207,142,0.3); }
+    70% { box-shadow: 0 0 0 14px rgba(62,207,142,0); }
+    100% { box-shadow: 0 0 0 0 rgba(62,207,142,0); }
+  }
+
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-4px); }
+    40% { transform: translateX(4px); }
+    60% { transform: translateX(-3px); }
+    80% { transform: translateX(2px); }
+  }
+
+  .anim-correct .staff-wrap { animation: pulse-correct 0.5s ease-out; }
+  .anim-wrong .staff-wrap { animation: shake 0.35s ease-out; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.26.2/babel.min.js"></script>
+
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback } = React;
+
+const ITALIAN = ["Do","Do#","Re","Re#","Mi","Fa","Fa#","Sol","Sol#","La","La#","Si"];
+const ALTO_TRANSPOSE = 9;
+const PRACTICE_NOTES = [60,62,64,65,67,69,71,72,74,76,77,79];
+const STABILITY_FRAMES = 8;
+
+function playSound(type) {
+  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  const now = ctx.currentTime;
+
+  if (type === "correct") {
+    const osc1 = ctx.createOscillator();
+    const osc2 = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc1.type = "sine";
+    osc1.frequency.setValueAtTime(880, now);
+    osc1.frequency.setValueAtTime(1108.73, now + 0.1);
+
+    osc2.type = "sine";
+    osc2.frequency.setValueAtTime(1108.73, now);
+    osc2.frequency.setValueAtTime(1318.51, now + 0.1);
+
+    gain.gain.setValueAtTime(0.15, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+
+    osc1.connect(gain);
+    osc2.connect(gain);
+    gain.connect(ctx.destination);
+    osc1.start(now);
+    osc2.start(now);
+    osc1.stop(now + 0.35);
+    osc2.stop(now + 0.35);
+  } else {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = "square";
+    osc.frequency.setValueAtTime(220, now);
+    osc.frequency.linearRampToValueAtTime(160, now + 0.2);
+
+    gain.gain.setValueAtTime(0.08, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.25);
+  }
+
+  setTimeout(() => ctx.close(), 500);
+}
+
+function autoCorrelate(buf, sr) {
+  const n = buf.length;
+  let rms = 0;
+  for (let i = 0; i < n; i++) rms += buf[i] * buf[i];
+  rms = Math.sqrt(rms / n);
+  if (rms < 0.012) return -1;
+
+  const corr = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    let sum = 0;
+    for (let j = 0; j < n - i; j++) sum += buf[j] * buf[j + i];
+    corr[i] = sum;
+  }
+
+  let d = 0;
+  while (d < n - 1 && corr[d] > corr[d + 1]) d++;
+
+  let maxVal = -1, maxPos = d;
+  for (let i = d; i < n; i++) {
+    if (corr[i] > maxVal) { maxVal = corr[i]; maxPos = i; }
+  }
+
+  if (maxPos <= 0 || maxPos >= n - 1) return sr / maxPos;
+
+  const x1 = corr[maxPos - 1], x2 = corr[maxPos], x3 = corr[maxPos + 1];
+  const a = (x1 + x3 - 2 * x2) / 2;
+  const b = (x3 - x1) / 2;
+  const shift = a ? -b / (2 * a) : 0;
+
+  return sr / (maxPos + shift);
+}
+
+function freqToMidi(f) { return 12 * Math.log2(f / 440) + 69; }
+
+function staffPos(midi) {
+  const oct = Math.floor(midi / 12) - 1;
+  const dMap = {0:0,1:0,2:1,3:1,4:2,5:3,6:3,7:4,8:4,9:5,10:5,11:6};
+  return oct * 7 + dMap[midi % 12] - 30;
+}
+
+function isSharp(midi) { return [1,3,6,8,10].includes(midi % 12); }
+
+function Staff({ midi, feedback, detectedMidi }) {
+  const pos = staffPos(midi);
+  const SP = 8;
+  const yOf = (p) => 130 - p * SP;
+  const noteY = yOf(pos);
+  const lines = [0,2,4,6,8];
+
+  const ledgers = [];
+  if (pos < 0) for (let p = -2; p >= pos - (pos % 2 === 0 ? 0 : 1); p -= 2) ledgers.push(p);
+  if (pos > 8) for (let p = 10; p <= pos + (pos % 2 === 0 ? 0 : 1); p += 2) ledgers.push(p);
+
+  const stemUp = pos <= 4;
+  const sharp = isSharp(midi);
+
+  let col = "#1a1a2e";
+  if (feedback === "correct") col = "#3ECF8E";
+  if (feedback === "wrong") col = "#EF6C6C";
+
+  const detPos = detectedMidi != null ? staffPos(detectedMidi) : null;
+  const detY = detPos != null ? yOf(detPos) : null;
+  const detLedgers = [];
+  if (detPos != null) {
+    if (detPos < 0) for (let p = -2; p >= detPos - (detPos % 2 === 0 ? 0 : 1); p -= 2) detLedgers.push(p);
+    if (detPos > 8) for (let p = 10; p <= detPos + (detPos % 2 === 0 ? 0 : 1); p += 2) detLedgers.push(p);
+  }
+
+  return (
+    <svg viewBox="0 0 340 190">
+      {lines.map((p, i) => (
+        <line key={i} x1="40" y1={yOf(p)} x2="305" y2={yOf(p)} stroke="#c0c0c0" strokeWidth="0.8" />
+      ))}
+
+      <text x="42" y={yOf(1) + 8} fontSize="80" fill="#888" fontFamily="Noto Music, serif" style={{userSelect:'none'}}>
+        {"\u{1D11E}"}
+      </text>
+
+      {ledgers.map((p, i) => (
+        <line key={`l${i}`} x1="160" y1={yOf(p)} x2="212" y2={yOf(p)} stroke="#c0c0c0" strokeWidth="0.8" />
+      ))}
+
+      {sharp && (
+        <text x="157" y={noteY + 7} fontSize="22" fill={col} fontFamily="Noto Music, serif" style={{userSelect:'none'}}>
+          {"\u266F"}
+        </text>
+      )}
+
+      <ellipse
+        cx="186" cy={noteY} rx="10.5" ry="7"
+        fill={col}
+        transform={`rotate(-12,186,${noteY})`}
+      />
+      {stemUp ? (
+        <line x1="196" y1={noteY - 1} x2="196" y2={noteY - 46} stroke={col} strokeWidth="1.8" />
+      ) : (
+        <line x1="176" y1={noteY + 1} x2="176" y2={noteY + 46} stroke={col} strokeWidth="1.8" />
+      )}
+
+      {feedback === "wrong" && detectedMidi != null && detectedMidi !== midi && (
+        <>
+          {detLedgers.map((p, i) => (
+            <line key={`dl${i}`} x1="242" y1={yOf(p)} x2="280" y2={yOf(p)} stroke="#ddd" strokeWidth="0.6" />
+          ))}
+          <ellipse
+            cx="261" cy={detY} rx="9" ry="6"
+            fill="none" stroke="#EF6C6C" strokeWidth="1.2" opacity="0.45"
+            transform={`rotate(-12,261,${detY})`}
+          />
+          <text x="280" y={detY + 5} fontSize="12" fill="#EF6C6C" opacity="0.6" fontFamily="DM Sans, sans-serif">
+            {ITALIAN[detectedMidi % 12]}
+          </text>
+        </>
+      )}
+    </svg>
+  );
+}
+
+function pickRandom(arr, exclude) {
+  const pool = arr.filter(n => n !== exclude);
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+function App() {
+  const [note, setNote] = useState(() => PRACTICE_NOTES[Math.floor(Math.random() * PRACTICE_NOTES.length)]);
+  const [listening, setListening] = useState(false);
+  const [feedback, setFeedback] = useState(null);
+  const [detWritten, setDetWritten] = useState(null);
+  const [streak, setStreak] = useState(0);
+  const [best, setBest] = useState(0);
+  const [total, setTotal] = useState(0);
+  const [correct, setCorrect] = useState(0);
+  const [cents, setCents] = useState(null);
+  const [level, setLevel] = useState(0);
+  const [animClass, setAnimClass] = useState("");
+
+  const ctxRef = useRef(null);
+  const anlRef = useRef(null);
+  const strRef = useRef(null);
+  const rafRef = useRef(null);
+  const stableRef = useRef(0);
+  const lastRef = useRef(null);
+  const lockRef = useRef(false);
+  const noteRef = useRef(note);
+  noteRef.current = note;
+
+  const nextNote = useCallback(() => {
+    setNote(prev => pickRandom(PRACTICE_NOTES, prev));
+    setFeedback(null);
+    setDetWritten(null);
+    setCents(null);
+    setAnimClass("");
+    stableRef.current = 0;
+    lastRef.current = null;
+    lockRef.current = false;
+  }, []);
+
+  const detect = useCallback(() => {
+    if (!anlRef.current || lockRef.current) {
+      rafRef.current = requestAnimationFrame(detect);
+      return;
+    }
+
+    const analyser = anlRef.current;
+    const buf = new Float32Array(analyser.fftSize);
+    analyser.getFloatTimeDomainData(buf);
+
+    let rms = 0;
+    for (let i = 0; i < buf.length; i++) rms += buf[i] * buf[i];
+    rms = Math.sqrt(rms / buf.length);
+    setLevel(Math.min(rms * 8, 1));
+
+    const freq = autoCorrelate(buf, ctxRef.current.sampleRate);
+
+    if (freq > 60 && freq < 2000) {
+      const rawMidi = freqToMidi(freq);
+      const rounded = Math.round(rawMidi);
+      const written = rounded + ALTO_TRANSPOSE;
+      const c = Math.round((rawMidi - rounded) * 100);
+
+      if (rounded === lastRef.current) {
+        stableRef.current++;
+      } else {
+        stableRef.current = 1;
+        lastRef.current = rounded;
+      }
+
+      if (stableRef.current >= STABILITY_FRAMES) {
+        lockRef.current = true;
+        setDetWritten(written);
+        setCents(c);
+
+        const ok = written === noteRef.current;
+
+        if (ok) {
+          setFeedback("correct");
+          setAnimClass("anim-correct");
+          playSound("correct");
+          setStreak(s => { const ns = s + 1; setBest(b => Math.max(b, ns)); return ns; });
+          setCorrect(cc => cc + 1);
+        } else {
+          setFeedback("wrong");
+          setAnimClass("anim-wrong");
+          playSound("wrong");
+          setStreak(0);
+        }
+        setTotal(t => t + 1);
+
+        setTimeout(() => {
+          if (ok) {
+            setNote(prev => pickRandom(PRACTICE_NOTES, prev));
+            setFeedback(null);
+            setDetWritten(null);
+            setCents(null);
+            setAnimClass("");
+            stableRef.current = 0;
+            lastRef.current = null;
+            lockRef.current = false;
+          } else {
+            lockRef.current = false;
+            stableRef.current = 0;
+            lastRef.current = null;
+          }
+        }, ok ? 900 : 1800);
+      }
+    } else {
+      stableRef.current = 0;
+      lastRef.current = null;
+    }
+
+    rafRef.current = requestAnimationFrame(detect);
+  }, []);
+
+  const start = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
+      });
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const src = ctx.createMediaStreamSource(stream);
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 4096;
+      src.connect(analyser);
+
+      ctxRef.current = ctx;
+      anlRef.current = analyser;
+      strRef.current = stream;
+
+      setListening(true);
+      setFeedback(null);
+      setDetWritten(null);
+      setAnimClass("");
+      stableRef.current = 0;
+      lastRef.current = null;
+      lockRef.current = false;
+
+      rafRef.current = requestAnimationFrame(detect);
+    } catch (e) {
+      alert("Microphone access is needed for this app to work. Please allow it and try again.");
+    }
+  }, [detect]);
+
+  const stop = useCallback(() => {
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    if (strRef.current) strRef.current.getTracks().forEach(t => t.stop());
+    if (ctxRef.current) ctxRef.current.close();
+    ctxRef.current = null;
+    anlRef.current = null;
+    strRef.current = null;
+    setListening(false);
+    setLevel(0);
+  }, []);
+
+  useEffect(() => () => {
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    if (strRef.current) strRef.current.getTracks().forEach(t => t.stop());
+    if (ctxRef.current) ctxRef.current.close();
+  }, []);
+
+  const name = ITALIAN[note % 12];
+  const oct = Math.floor(note / 12) - 1;
+  const pct = total > 0 ? Math.round((correct / total) * 100) : 0;
+
+  const noteColor = feedback === "correct" ? "var(--correct)" : feedback === "wrong" ? "var(--wrong)" : "var(--text)";
+
+  let fbText = "";
+  let fbClass = "waiting";
+  if (feedback === "correct") {
+    fbText = "Correct!";
+    fbClass = "correct";
+  } else if (feedback === "wrong" && detWritten != null) {
+    const played = ITALIAN[detWritten % 12];
+    fbText = `You played ${played}` + (cents != null && cents !== 0 ? ` (${cents > 0 ? "+" : ""}${cents}\u00A2)` : "");
+    fbClass = "wrong";
+  } else if (listening) {
+    fbText = "Play the note\u2026";
+  } else {
+    fbText = "Press Start to begin";
+  }
+
+  return (
+    <>
+      <h1>Sax Trainer</h1>
+      <div className="subtitle">Alto Saxophone</div>
+
+      <div className={`card ${animClass}`}>
+        <div className="staff-wrap">
+          <Staff midi={note} feedback={feedback} detectedMidi={detWritten} />
+        </div>
+
+        <div className="note-display" style={{ color: noteColor }}>
+          <span className="note-name">{name}</span>
+          <span className="note-oct" style={{ color: feedback ? noteColor : undefined }}>{oct}</span>
+        </div>
+
+        <div className={`feedback-text ${fbClass}`}>{fbText}</div>
+
+        {listening && (
+          <div className="mic-bar-wrap">
+            <div className="mic-bar" style={{
+              width: `${level * 100}%`,
+              opacity: level > 0.08 ? 1 : 0.3,
+            }} />
+          </div>
+        )}
+      </div>
+
+      <div className="controls">
+        {!listening ? (
+          <button className="btn btn-primary" onClick={start}>Start</button>
+        ) : (
+          <>
+            <button className="btn btn-secondary" onClick={stop}>Stop</button>
+            <button className="btn btn-secondary" onClick={nextNote}>Skip</button>
+          </>
+        )}
+      </div>
+
+      {total > 0 && (
+        <div className="stats">
+          <div className="stat">
+            <div className="stat-val">{streak}</div>
+            <div className="stat-label">Streak</div>
+          </div>
+          <div className="stat">
+            <div className="stat-val">{best}</div>
+            <div className="stat-label">Best</div>
+          </div>
+          <div className="stat">
+            <div className="stat-val">{pct}%</div>
+            <div className="stat-label">Accuracy</div>
+          </div>
+          <div className="stat">
+            <div className="stat-val">{correct}/{total}</div>
+            <div className="stat-label">Score</div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
