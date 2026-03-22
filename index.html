@@ -195,6 +195,15 @@
     line-height: 1;
   }
 
+  .note-letter {
+    font-family: 'DM Mono', monospace;
+    font-size: 26px;
+    font-weight: 400;
+    line-height: 1;
+    opacity: 0.45;
+    margin-left: 2px;
+  }
+
   .note-oct {
     font-size: 18px;
     color: var(--text-dim);
@@ -393,6 +402,7 @@ const { useState, useEffect, useRef, useCallback } = React;
 
 const NOTES_EN = ["Do","Do#","Re","Re#","Mi","Fa","Fa#","Sol","Sol#","La","La#","Si"];
 const NOTES_RU = ["\u0414\u043E","\u0414\u043E#","\u0420\u0435","\u0420\u0435#","\u041C\u0438","\u0424\u0430","\u0424\u0430#","\u0421\u043E\u043B\u044C","\u0421\u043E\u043B\u044C#","\u041B\u044F","\u041B\u044F#","\u0421\u0438"];
+const NOTES_LETTER = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
 
 const INSTRUMENTS = {
   alto_sax:    { transpose: 9,  en: "Alto Sax (Eb)",           ru: "\u0410\u043B\u044C\u0442-\u0441\u0430\u043A\u0441 (Eb)" },
@@ -407,14 +417,14 @@ const STRINGS = {
     play: "Play the note\u2026", pressStart: "Press Start to begin",
     correct: "Correct!", youPlayed: "You played",
     streak: "Streak", best: "Best", accuracy: "Accuracy", score: "Score",
-    start: "Start", stop: "Stop", skip: "Skip", mic: "Mic",
+    start: "Start", stop: "Stop", skip: "Skip",
   },
   ru: {
     natural: "\u041D\u0430\u0442\u0443\u0440\u0430\u043B\u044C\u043D\u044B\u0435", chromatic: "\u0425\u0440\u043E\u043C\u0430\u0442\u0438\u043A\u0430", showName: "\u041D\u043E\u0442\u0430",
     play: "\u0421\u044B\u0433\u0440\u0430\u0439 \u043D\u043E\u0442\u0443\u2026", pressStart: "\u041D\u0430\u0436\u043C\u0438 \u0421\u0442\u0430\u0440\u0442",
     correct: "\u041F\u0440\u0430\u0432\u0438\u043B\u044C\u043D\u043E!", youPlayed: "\u0422\u044B \u0441\u044B\u0433\u0440\u0430\u043B",
     streak: "\u0421\u0435\u0440\u0438\u044F", best: "\u041B\u0443\u0447\u0448.", accuracy: "\u0422\u043E\u0447\u043D.", score: "\u0421\u0447\u0451\u0442",
-    start: "\u0421\u0442\u0430\u0440\u0442", stop: "\u0421\u0442\u043E\u043F", skip: "\u0414\u0430\u043B\u044C\u0448\u0435", mic: "\u041C\u0438\u043A",
+    start: "\u0421\u0442\u0430\u0440\u0442", stop: "\u0421\u0442\u043E\u043F", skip: "\u0414\u0430\u043B\u044C\u0448\u0435",
   }
 };
 
@@ -425,10 +435,14 @@ const STABILITY_FRAMES = 8;
 
 const SENS_MIN = 0.002;
 const SENS_MAX = 0.04;
-const SENS_DEFAULT = 0.01;
 
-function sensToThreshold(sens) {
-  return SENS_MAX - sens * (SENS_MAX - SENS_MIN);
+function sensToThreshold(sens) { return SENS_MAX - sens * (SENS_MAX - SENS_MIN); }
+
+function noteName(midi, lang) {
+  const solfege = lang === "ru" ? NOTES_RU : NOTES_EN;
+  const s = solfege[midi % 12];
+  const l = NOTES_LETTER[midi % 12];
+  return { solfege: s, letter: l, full: `${s}/${l}` };
 }
 
 function playSound(type) {
@@ -478,7 +492,7 @@ function staffPos(midi) {
 
 function isSharp(midi) { return [1,3,6,8,10].includes(midi % 12); }
 
-function Staff({ midi, feedback, detectedMidi, noteNames }) {
+function Staff({ midi, feedback, detectedMidi, lang }) {
   const pos = staffPos(midi);
   const SP = 8;
   const yOf = (p) => 130 - p * SP;
@@ -513,7 +527,7 @@ function Staff({ midi, feedback, detectedMidi, noteNames }) {
         <>
           {detLedgers.map((p, i) => <line key={`dl${i}`} x1="242" y1={yOf(p)} x2="280" y2={yOf(p)} stroke="#ddd" strokeWidth="0.6" />)}
           <ellipse cx="261" cy={detY} rx="9" ry="6" fill="none" stroke="#EF6C6C" strokeWidth="1.2" opacity="0.45" transform={`rotate(-12,261,${detY})`} />
-          <text x="280" y={detY + 5} fontSize="12" fill="#EF6C6C" opacity="0.6" fontFamily="DM Sans, sans-serif">{noteNames[detectedMidi % 12]}</text>
+          <text x="280" y={detY + 5} fontSize="12" fill="#EF6C6C" opacity="0.6" fontFamily="DM Sans, sans-serif">{noteName(detectedMidi, lang).full}</text>
         </>
       )}
     </svg>
@@ -569,8 +583,8 @@ function App() {
   sensRef.current = sensitivity;
 
   const threshold = sensToThreshold(sensitivity);
-  const noteNames = lang === "ru" ? NOTES_RU : NOTES_EN;
   const t = STRINGS[lang];
+  const nn = noteName(note, lang);
 
   const changeLang = (l) => { setLang(l); localStorage.setItem("sax-lang", l); };
 
@@ -683,7 +697,6 @@ function App() {
     if (ctxRef.current) ctxRef.current.close();
   }, []);
 
-  const name = noteNames[note % 12];
   const oct = Math.floor(note / 12) - 1;
   const pct = total > 0 ? Math.round((correct / total) * 100) : 0;
   const noteColor = feedback === "correct" ? "var(--correct)" : feedback === "wrong" ? "var(--wrong)" : "var(--text)";
@@ -691,11 +704,11 @@ function App() {
 
   let fbText = ""; let fbClass = "waiting";
   if (feedback === "correct") {
-    fbText = showName ? t.correct : `${name} \u2014 ${t.correct}`;
+    fbText = showName ? t.correct : `${nn.full} \u2014 ${t.correct}`;
     fbClass = "correct";
   } else if (feedback === "wrong" && detWritten != null) {
-    const played = noteNames[detWritten % 12];
-    const expected = showName ? "" : ` (${name})`;
+    const played = noteName(detWritten, lang).full;
+    const expected = showName ? "" : ` (${nn.full})`;
     fbText = `${t.youPlayed} ${played}${expected}` + (cents != null && cents !== 0 ? ` (${cents > 0 ? "+" : ""}${cents}\u00A2)` : "");
     fbClass = "wrong";
   } else if (listening) { fbText = t.play; }
@@ -729,13 +742,14 @@ function App() {
         </div>
 
         <div className="staff-wrap">
-          <Staff midi={note} feedback={feedback} detectedMidi={detWritten} noteNames={noteNames} />
+          <Staff midi={note} feedback={feedback} detectedMidi={detWritten} lang={lang} />
         </div>
 
         <div className="note-display" style={{ color: noteColor }}>
           {showName || shouldReveal ? (
             <>
-              <span className="note-name">{name}</span>
+              <span className="note-name">{nn.solfege}</span>
+              <span className="note-letter" style={{ color: feedback ? noteColor : undefined, opacity: feedback ? 0.6 : 0.45 }}>/{nn.letter}</span>
               <span className="note-oct" style={{ color: feedback ? noteColor : undefined }}>{oct}</span>
             </>
           ) : (
