@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Sax Trainer</title>
+<title>Note Trainer</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -110,11 +110,7 @@
   }
 
   .instrument-select:focus { border-color: rgba(108,142,239,0.4); }
-
-  .instrument-select option {
-    background: #1a1a2e;
-    color: var(--text);
-  }
+  .instrument-select option { background: #1a1a2e; color: var(--text); }
 
   .card {
     background: var(--card);
@@ -233,6 +229,7 @@
     border-radius: 2px;
     margin-top: 16px;
     overflow: hidden;
+    position: relative;
   }
 
   .mic-bar {
@@ -240,6 +237,74 @@
     border-radius: 2px;
     transition: width 0.06s linear;
     background: var(--accent);
+  }
+
+  .mic-threshold {
+    position: absolute;
+    top: -2px;
+    bottom: -2px;
+    width: 1px;
+    background: rgba(255,255,255,0.35);
+    pointer-events: none;
+  }
+
+  .sensitivity-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 75%;
+    margin-top: 10px;
+  }
+
+  .sensitivity-label {
+    font-size: 11px;
+    color: var(--text-dim);
+    white-space: nowrap;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-weight: 500;
+    min-width: 28px;
+  }
+
+  .sensitivity-label svg {
+    width: 14px;
+    height: 14px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    vertical-align: -2px;
+  }
+
+  .sensitivity-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    flex: 1;
+    height: 3px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 2px;
+    outline: none;
+  }
+
+  .sensitivity-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    border: none;
+  }
+
+  .sensitivity-slider::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    border: none;
   }
 
   .controls {
@@ -342,14 +407,14 @@ const STRINGS = {
     play: "Play the note\u2026", pressStart: "Press Start to begin",
     correct: "Correct!", youPlayed: "You played",
     streak: "Streak", best: "Best", accuracy: "Accuracy", score: "Score",
-    start: "Start", stop: "Stop", skip: "Skip",
+    start: "Start", stop: "Stop", skip: "Skip", mic: "Mic",
   },
   ru: {
     natural: "\u041D\u0430\u0442\u0443\u0440\u0430\u043B\u044C\u043D\u044B\u0435", chromatic: "\u0425\u0440\u043E\u043C\u0430\u0442\u0438\u043A\u0430", showName: "\u041D\u043E\u0442\u0430",
     play: "\u0421\u044B\u0433\u0440\u0430\u0439 \u043D\u043E\u0442\u0443\u2026", pressStart: "\u041D\u0430\u0436\u043C\u0438 \u0421\u0442\u0430\u0440\u0442",
     correct: "\u041F\u0440\u0430\u0432\u0438\u043B\u044C\u043D\u043E!", youPlayed: "\u0422\u044B \u0441\u044B\u0433\u0440\u0430\u043B",
     streak: "\u0421\u0435\u0440\u0438\u044F", best: "\u041B\u0443\u0447\u0448.", accuracy: "\u0422\u043E\u0447\u043D.", score: "\u0421\u0447\u0451\u0442",
-    start: "\u0421\u0442\u0430\u0440\u0442", stop: "\u0421\u0442\u043E\u043F", skip: "\u0414\u0430\u043B\u044C\u0448\u0435",
+    start: "\u0421\u0442\u0430\u0440\u0442", stop: "\u0421\u0442\u043E\u043F", skip: "\u0414\u0430\u043B\u044C\u0448\u0435", mic: "\u041C\u0438\u043A",
   }
 };
 
@@ -357,6 +422,14 @@ const NATURAL_NOTES = [60,62,64,65,67,69,71,72,74,76,77,79];
 const CHROMATIC_NOTES = [];
 for (let i = 60; i <= 79; i++) CHROMATIC_NOTES.push(i);
 const STABILITY_FRAMES = 8;
+
+const SENS_MIN = 0.002;
+const SENS_MAX = 0.04;
+const SENS_DEFAULT = 0.01;
+
+function sensToThreshold(sens) {
+  return SENS_MAX - sens * (SENS_MAX - SENS_MIN);
+}
 
 function playSound(type) {
   const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -377,12 +450,12 @@ function playSound(type) {
   setTimeout(() => ctx.close(), 500);
 }
 
-function autoCorrelate(buf, sr) {
+function autoCorrelate(buf, sr, threshold) {
   const n = buf.length;
   let rms = 0;
   for (let i = 0; i < n; i++) rms += buf[i] * buf[i];
   rms = Math.sqrt(rms / n);
-  if (rms < 0.012) return -1;
+  if (rms < threshold) return -1;
   const corr = new Float32Array(n);
   for (let i = 0; i < n; i++) { let s = 0; for (let j = 0; j < n - i; j++) s += buf[j] * buf[j + i]; corr[i] = s; }
   let d = 0;
@@ -452,6 +525,10 @@ function EyeIcon({ open }) {
   return <svg viewBox="0 0 24 24"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>;
 }
 
+function MicIcon() {
+  return <svg viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>;
+}
+
 function pickRandom(arr, exclude) {
   const pool = arr.filter(n => n !== exclude);
   return pool[Math.floor(Math.random() * pool.length)];
@@ -462,6 +539,7 @@ function App() {
   const [instrument, setInstrument] = useState(() => localStorage.getItem("sax-instrument") || "alto_sax");
   const [mode, setMode] = useState(() => localStorage.getItem("sax-mode") || "natural");
   const [showName, setShowName] = useState(() => localStorage.getItem("sax-showname") !== "false");
+  const [sensitivity, setSensitivity] = useState(() => parseFloat(localStorage.getItem("sax-sens")) || 0.5);
   const [note, setNote] = useState(() => NATURAL_NOTES[Math.floor(Math.random() * NATURAL_NOTES.length)]);
   const [listening, setListening] = useState(false);
   const [feedback, setFeedback] = useState(null);
@@ -484,14 +562,15 @@ function App() {
   const noteRef = useRef(note);
   const modeRef = useRef(mode);
   const instrumentRef = useRef(instrument);
+  const sensRef = useRef(sensitivity);
   noteRef.current = note;
   modeRef.current = mode;
   instrumentRef.current = instrument;
+  sensRef.current = sensitivity;
 
-  const transpose = INSTRUMENTS[instrument].transpose;
+  const threshold = sensToThreshold(sensitivity);
   const noteNames = lang === "ru" ? NOTES_RU : NOTES_EN;
   const t = STRINGS[lang];
-  const instLabel = INSTRUMENTS[instrument][lang];
 
   const changeLang = (l) => { setLang(l); localStorage.setItem("sax-lang", l); };
 
@@ -505,6 +584,12 @@ function App() {
     setMode(m);
     localStorage.setItem("sax-mode", m);
     resetState(m);
+  };
+
+  const changeSensitivity = (val) => {
+    setSensitivity(val);
+    sensRef.current = val;
+    localStorage.setItem("sax-sens", String(val));
   };
 
   const resetState = (m) => {
@@ -527,7 +612,8 @@ function App() {
     for (let i = 0; i < buf.length; i++) rms += buf[i] * buf[i];
     rms = Math.sqrt(rms / buf.length);
     setLevel(Math.min(rms * 8, 1));
-    const freq = autoCorrelate(buf, ctxRef.current.sampleRate);
+    const currentThreshold = sensToThreshold(sensRef.current);
+    const freq = autoCorrelate(buf, ctxRef.current.sampleRate, currentThreshold);
     if (freq > 60 && freq < 2000) {
       const rawMidi = freqToMidi(freq);
       const rounded = Math.round(rawMidi);
@@ -615,6 +701,8 @@ function App() {
   } else if (listening) { fbText = t.play; }
   else { fbText = t.pressStart; }
 
+  const thresholdPct = (threshold / (SENS_MAX * 1.5)) * 100;
+
   return (
     <>
       <div className="header">
@@ -658,9 +746,24 @@ function App() {
         <div className={`feedback-text ${fbClass}`}>{fbText}</div>
 
         {listening && (
-          <div className="mic-bar-wrap">
-            <div className="mic-bar" style={{ width: `${level * 100}%`, opacity: level > 0.08 ? 1 : 0.3 }} />
-          </div>
+          <>
+            <div className="mic-bar-wrap">
+              <div className="mic-bar" style={{ width: `${level * 100}%`, opacity: level > 0.08 ? 1 : 0.3 }} />
+              <div className="mic-threshold" style={{ left: `${Math.min(thresholdPct, 100)}%` }} />
+            </div>
+            <div className="sensitivity-row">
+              <span className="sensitivity-label"><MicIcon /></span>
+              <input
+                type="range"
+                className="sensitivity-slider"
+                min="0"
+                max="1"
+                step="0.01"
+                value={sensitivity}
+                onChange={e => changeSensitivity(parseFloat(e.target.value))}
+              />
+            </div>
+          </>
         )}
       </div>
 
