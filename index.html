@@ -89,13 +89,31 @@
     color: var(--accent);
   }
 
-  .subtitle {
+  .instrument-select {
+    font-family: 'DM Sans', sans-serif;
     font-size: 12px;
-    color: var(--text-dim);
-    margin-top: 2px;
     font-weight: 500;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.04em;
     text-transform: uppercase;
+    color: var(--text-dim);
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px;
+    padding: 5px 8px;
+    margin-top: 6px;
+    cursor: pointer;
+    -webkit-appearance: none;
+    appearance: none;
+    text-align: center;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  .instrument-select:focus { border-color: rgba(108,142,239,0.4); }
+
+  .instrument-select option {
+    background: #1a1a2e;
+    color: var(--text);
   }
 
   .card {
@@ -107,7 +125,7 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    margin-top: 24px;
+    margin-top: 16px;
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
   }
@@ -311,44 +329,30 @@ const { useState, useEffect, useRef, useCallback } = React;
 const NOTES_EN = ["Do","Do#","Re","Re#","Mi","Fa","Fa#","Sol","Sol#","La","La#","Si"];
 const NOTES_RU = ["\u0414\u043E","\u0414\u043E#","\u0420\u0435","\u0420\u0435#","\u041C\u0438","\u0424\u0430","\u0424\u0430#","\u0421\u043E\u043B\u044C","\u0421\u043E\u043B\u044C#","\u041B\u044F","\u041B\u044F#","\u0421\u0438"];
 
+const INSTRUMENTS = {
+  alto_sax:    { transpose: 9,  en: "Alto Sax (Eb)",           ru: "\u0410\u043B\u044C\u0442-\u0441\u0430\u043A\u0441 (Eb)" },
+  bb_clarinet: { transpose: 2,  en: "Bb Clarinet",             ru: "\u041A\u043B\u0430\u0440\u043D\u0435\u0442 (Bb)" },
+  c_clarinet:  { transpose: 0,  en: "C Clarinet",              ru: "\u041A\u043B\u0430\u0440\u043D\u0435\u0442 (C)" },
+  concert:     { transpose: 0,  en: "Concert pitch",           ru: "\u041A\u043E\u043D\u0446\u0435\u0440\u0442\u043D\u044B\u0439 \u0441\u0442\u0440\u043E\u0439" },
+};
+
 const STRINGS = {
   en: {
-    subtitle: "Alto Saxophone",
-    natural: "Natural",
-    chromatic: "Chromatic",
-    showName: "Name",
-    play: "Play the note\u2026",
-    pressStart: "Press Start to begin",
-    correct: "Correct!",
-    youPlayed: "You played",
-    streak: "Streak",
-    best: "Best",
-    accuracy: "Accuracy",
-    score: "Score",
-    start: "Start",
-    stop: "Stop",
-    skip: "Skip",
+    natural: "Natural", chromatic: "Chromatic", showName: "Name",
+    play: "Play the note\u2026", pressStart: "Press Start to begin",
+    correct: "Correct!", youPlayed: "You played",
+    streak: "Streak", best: "Best", accuracy: "Accuracy", score: "Score",
+    start: "Start", stop: "Stop", skip: "Skip",
   },
   ru: {
-    subtitle: "\u0410\u043B\u044C\u0442-\u0441\u0430\u043A\u0441\u043E\u0444\u043E\u043D",
-    natural: "\u041D\u0430\u0442\u0443\u0440\u0430\u043B\u044C\u043D\u044B\u0435",
-    chromatic: "\u0425\u0440\u043E\u043C\u0430\u0442\u0438\u043A\u0430",
-    showName: "\u041D\u043E\u0442\u0430",
-    play: "\u0421\u044B\u0433\u0440\u0430\u0439 \u043D\u043E\u0442\u0443\u2026",
-    pressStart: "\u041D\u0430\u0436\u043C\u0438 \u0421\u0442\u0430\u0440\u0442",
-    correct: "\u041F\u0440\u0430\u0432\u0438\u043B\u044C\u043D\u043E!",
-    youPlayed: "\u0422\u044B \u0441\u044B\u0433\u0440\u0430\u043B",
-    streak: "\u0421\u0435\u0440\u0438\u044F",
-    best: "\u041B\u0443\u0447\u0448.",
-    accuracy: "\u0422\u043E\u0447\u043D.",
-    score: "\u0421\u0447\u0451\u0442",
-    start: "\u0421\u0442\u0430\u0440\u0442",
-    stop: "\u0421\u0442\u043E\u043F",
-    skip: "\u0414\u0430\u043B\u044C\u0448\u0435",
+    natural: "\u041D\u0430\u0442\u0443\u0440\u0430\u043B\u044C\u043D\u044B\u0435", chromatic: "\u0425\u0440\u043E\u043C\u0430\u0442\u0438\u043A\u0430", showName: "\u041D\u043E\u0442\u0430",
+    play: "\u0421\u044B\u0433\u0440\u0430\u0439 \u043D\u043E\u0442\u0443\u2026", pressStart: "\u041D\u0430\u0436\u043C\u0438 \u0421\u0442\u0430\u0440\u0442",
+    correct: "\u041F\u0440\u0430\u0432\u0438\u043B\u044C\u043D\u043E!", youPlayed: "\u0422\u044B \u0441\u044B\u0433\u0440\u0430\u043B",
+    streak: "\u0421\u0435\u0440\u0438\u044F", best: "\u041B\u0443\u0447\u0448.", accuracy: "\u0422\u043E\u0447\u043D.", score: "\u0421\u0447\u0451\u0442",
+    start: "\u0421\u0442\u0430\u0440\u0442", stop: "\u0421\u0442\u043E\u043F", skip: "\u0414\u0430\u043B\u044C\u0448\u0435",
   }
 };
 
-const ALTO_TRANSPOSE = 9;
 const NATURAL_NOTES = [60,62,64,65,67,69,71,72,74,76,77,79];
 const CHROMATIC_NOTES = [];
 for (let i = 60; i <= 79; i++) CHROMATIC_NOTES.push(i);
@@ -358,36 +362,17 @@ function playSound(type) {
   const ctx = new (window.AudioContext || window.webkitAudioContext)();
   const now = ctx.currentTime;
   if (type === "correct") {
-    const osc1 = ctx.createOscillator();
-    const osc2 = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc1.type = "sine";
-    osc1.frequency.setValueAtTime(880, now);
-    osc1.frequency.setValueAtTime(1108.73, now + 0.1);
-    osc2.type = "sine";
-    osc2.frequency.setValueAtTime(1108.73, now);
-    osc2.frequency.setValueAtTime(1318.51, now + 0.1);
-    gain.gain.setValueAtTime(0.15, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
-    osc1.connect(gain);
-    osc2.connect(gain);
-    gain.connect(ctx.destination);
-    osc1.start(now);
-    osc2.start(now);
-    osc1.stop(now + 0.35);
-    osc2.stop(now + 0.35);
+    const o1 = ctx.createOscillator(), o2 = ctx.createOscillator(), g = ctx.createGain();
+    o1.type = "sine"; o1.frequency.setValueAtTime(880, now); o1.frequency.setValueAtTime(1108.73, now + 0.1);
+    o2.type = "sine"; o2.frequency.setValueAtTime(1108.73, now); o2.frequency.setValueAtTime(1318.51, now + 0.1);
+    g.gain.setValueAtTime(0.15, now); g.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+    o1.connect(g); o2.connect(g); g.connect(ctx.destination);
+    o1.start(now); o2.start(now); o1.stop(now + 0.35); o2.stop(now + 0.35);
   } else {
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = "square";
-    osc.frequency.setValueAtTime(220, now);
-    osc.frequency.linearRampToValueAtTime(160, now + 0.2);
-    gain.gain.setValueAtTime(0.08, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start(now);
-    osc.stop(now + 0.25);
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = "square"; o.frequency.setValueAtTime(220, now); o.frequency.linearRampToValueAtTime(160, now + 0.2);
+    g.gain.setValueAtTime(0.08, now); g.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+    o.connect(g); g.connect(ctx.destination); o.start(now); o.stop(now + 0.25);
   }
   setTimeout(() => ctx.close(), 500);
 }
@@ -399,23 +384,15 @@ function autoCorrelate(buf, sr) {
   rms = Math.sqrt(rms / n);
   if (rms < 0.012) return -1;
   const corr = new Float32Array(n);
-  for (let i = 0; i < n; i++) {
-    let sum = 0;
-    for (let j = 0; j < n - i; j++) sum += buf[j] * buf[j + i];
-    corr[i] = sum;
-  }
+  for (let i = 0; i < n; i++) { let s = 0; for (let j = 0; j < n - i; j++) s += buf[j] * buf[j + i]; corr[i] = s; }
   let d = 0;
   while (d < n - 1 && corr[d] > corr[d + 1]) d++;
   let maxVal = -1, maxPos = d;
-  for (let i = d; i < n; i++) {
-    if (corr[i] > maxVal) { maxVal = corr[i]; maxPos = i; }
-  }
+  for (let i = d; i < n; i++) { if (corr[i] > maxVal) { maxVal = corr[i]; maxPos = i; } }
   if (maxPos <= 0 || maxPos >= n - 1) return sr / maxPos;
   const x1 = corr[maxPos - 1], x2 = corr[maxPos], x3 = corr[maxPos + 1];
-  const a = (x1 + x3 - 2 * x2) / 2;
-  const b = (x3 - x1) / 2;
-  const shift = a ? -b / (2 * a) : 0;
-  return sr / (maxPos + shift);
+  const a = (x1 + x3 - 2 * x2) / 2, b = (x3 - x1) / 2;
+  return sr / (maxPos + (a ? -b / (2 * a) : 0));
 }
 
 function freqToMidi(f) { return 12 * Math.log2(f / 440) + 69; }
@@ -434,18 +411,14 @@ function Staff({ midi, feedback, detectedMidi, noteNames }) {
   const yOf = (p) => 130 - p * SP;
   const noteY = yOf(pos);
   const lines = [0,2,4,6,8];
-
   const ledgers = [];
   if (pos < 0) for (let p = -2; p >= pos - (pos % 2 === 0 ? 0 : 1); p -= 2) ledgers.push(p);
   if (pos > 8) for (let p = 10; p <= pos + (pos % 2 === 0 ? 0 : 1); p += 2) ledgers.push(p);
-
   const stemUp = pos <= 4;
   const sharp = isSharp(midi);
-
   let col = "#1a1a2e";
   if (feedback === "correct") col = "#3ECF8E";
   if (feedback === "wrong") col = "#EF6C6C";
-
   const detPos = detectedMidi != null ? staffPos(detectedMidi) : null;
   const detY = detPos != null ? yOf(detPos) : null;
   const detLedgers = [];
@@ -453,38 +426,21 @@ function Staff({ midi, feedback, detectedMidi, noteNames }) {
     if (detPos < 0) for (let p = -2; p >= detPos - (detPos % 2 === 0 ? 0 : 1); p -= 2) detLedgers.push(p);
     if (detPos > 8) for (let p = 10; p <= detPos + (detPos % 2 === 0 ? 0 : 1); p += 2) detLedgers.push(p);
   }
-
   return (
     <svg viewBox="0 0 340 190">
-      {lines.map((p, i) => (
-        <line key={i} x1="40" y1={yOf(p)} x2="305" y2={yOf(p)} stroke="#c0c0c0" strokeWidth="0.8" />
-      ))}
-      <text x="42" y={yOf(1) + 8} fontSize="80" fill="#888" fontFamily="Noto Music, serif" style={{userSelect:'none'}}>
-        {"\u{1D11E}"}
-      </text>
-      {ledgers.map((p, i) => (
-        <line key={`l${i}`} x1="160" y1={yOf(p)} x2="212" y2={yOf(p)} stroke="#c0c0c0" strokeWidth="0.8" />
-      ))}
-      {sharp && (
-        <text x="155" y={noteY + 7} fontSize="22" fill={col} fontFamily="Noto Music, serif" style={{userSelect:'none'}}>
-          {"\u266F"}
-        </text>
-      )}
+      {lines.map((p, i) => <line key={i} x1="40" y1={yOf(p)} x2="305" y2={yOf(p)} stroke="#c0c0c0" strokeWidth="0.8" />)}
+      <text x="42" y={yOf(1) + 8} fontSize="80" fill="#888" fontFamily="Noto Music, serif" style={{userSelect:'none'}}>{"\u{1D11E}"}</text>
+      {ledgers.map((p, i) => <line key={`l${i}`} x1="160" y1={yOf(p)} x2="212" y2={yOf(p)} stroke="#c0c0c0" strokeWidth="0.8" />)}
+      {sharp && <text x="155" y={noteY + 7} fontSize="22" fill={col} fontFamily="Noto Music, serif" style={{userSelect:'none'}}>{"\u266F"}</text>}
       <ellipse cx="186" cy={noteY} rx="10.5" ry="7" fill={col} transform={`rotate(-12,186,${noteY})`} />
-      {stemUp ? (
-        <line x1="196" y1={noteY - 1} x2="196" y2={noteY - 46} stroke={col} strokeWidth="1.8" />
-      ) : (
-        <line x1="176" y1={noteY + 1} x2="176" y2={noteY + 46} stroke={col} strokeWidth="1.8" />
-      )}
+      {stemUp
+        ? <line x1="196" y1={noteY - 1} x2="196" y2={noteY - 46} stroke={col} strokeWidth="1.8" />
+        : <line x1="176" y1={noteY + 1} x2="176" y2={noteY + 46} stroke={col} strokeWidth="1.8" />}
       {feedback === "wrong" && detectedMidi != null && detectedMidi !== midi && (
         <>
-          {detLedgers.map((p, i) => (
-            <line key={`dl${i}`} x1="242" y1={yOf(p)} x2="280" y2={yOf(p)} stroke="#ddd" strokeWidth="0.6" />
-          ))}
+          {detLedgers.map((p, i) => <line key={`dl${i}`} x1="242" y1={yOf(p)} x2="280" y2={yOf(p)} stroke="#ddd" strokeWidth="0.6" />)}
           <ellipse cx="261" cy={detY} rx="9" ry="6" fill="none" stroke="#EF6C6C" strokeWidth="1.2" opacity="0.45" transform={`rotate(-12,261,${detY})`} />
-          <text x="280" y={detY + 5} fontSize="12" fill="#EF6C6C" opacity="0.6" fontFamily="DM Sans, sans-serif">
-            {noteNames[detectedMidi % 12]}
-          </text>
+          <text x="280" y={detY + 5} fontSize="12" fill="#EF6C6C" opacity="0.6" fontFamily="DM Sans, sans-serif">{noteNames[detectedMidi % 12]}</text>
         </>
       )}
     </svg>
@@ -492,12 +448,8 @@ function Staff({ midi, feedback, detectedMidi, noteNames }) {
 }
 
 function EyeIcon({ open }) {
-  if (open) return (
-    <svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>
-  );
-  return (
-    <svg viewBox="0 0 24 24"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-  );
+  if (open) return <svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>;
+  return <svg viewBox="0 0 24 24"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>;
 }
 
 function pickRandom(arr, exclude) {
@@ -507,6 +459,7 @@ function pickRandom(arr, exclude) {
 
 function App() {
   const [lang, setLang] = useState(() => localStorage.getItem("sax-lang") || "en");
+  const [instrument, setInstrument] = useState(() => localStorage.getItem("sax-instrument") || "alto_sax");
   const [mode, setMode] = useState(() => localStorage.getItem("sax-mode") || "natural");
   const [showName, setShowName] = useState(() => localStorage.getItem("sax-showname") !== "false");
   const [note, setNote] = useState(() => NATURAL_NOTES[Math.floor(Math.random() * NATURAL_NOTES.length)]);
@@ -530,36 +483,43 @@ function App() {
   const lockRef = useRef(false);
   const noteRef = useRef(note);
   const modeRef = useRef(mode);
+  const instrumentRef = useRef(instrument);
   noteRef.current = note;
   modeRef.current = mode;
+  instrumentRef.current = instrument;
 
+  const transpose = INSTRUMENTS[instrument].transpose;
   const noteNames = lang === "ru" ? NOTES_RU : NOTES_EN;
   const t = STRINGS[lang];
+  const instLabel = INSTRUMENTS[instrument][lang];
 
   const changeLang = (l) => { setLang(l); localStorage.setItem("sax-lang", l); };
+
+  const changeInstrument = (key) => {
+    setInstrument(key);
+    localStorage.setItem("sax-instrument", key);
+    resetState();
+  };
 
   const changeMode = (m) => {
     setMode(m);
     localStorage.setItem("sax-mode", m);
-    const p = m === "chromatic" ? CHROMATIC_NOTES : NATURAL_NOTES;
+    resetState(m);
+  };
+
+  const resetState = (m) => {
+    const p = (m || mode) === "chromatic" ? CHROMATIC_NOTES : NATURAL_NOTES;
     setNote(pickRandom(p, note));
     setFeedback(null); setDetWritten(null); setCents(null); setAnimClass("");
     stableRef.current = 0; lastRef.current = null; lockRef.current = false;
   };
 
   const toggleShowName = () => {
-    setShowName(prev => {
-      const next = !prev;
-      localStorage.setItem("sax-showname", String(next));
-      return next;
-    });
+    setShowName(prev => { const n = !prev; localStorage.setItem("sax-showname", String(n)); return n; });
   };
 
   const detect = useCallback(() => {
-    if (!anlRef.current || lockRef.current) {
-      rafRef.current = requestAnimationFrame(detect);
-      return;
-    }
+    if (!anlRef.current || lockRef.current) { rafRef.current = requestAnimationFrame(detect); return; }
     const analyser = anlRef.current;
     const buf = new Float32Array(analyser.fftSize);
     analyser.getFloatTimeDomainData(buf);
@@ -571,7 +531,8 @@ function App() {
     if (freq > 60 && freq < 2000) {
       const rawMidi = freqToMidi(freq);
       const rounded = Math.round(rawMidi);
-      const written = rounded + ALTO_TRANSPOSE;
+      const tr = INSTRUMENTS[instrumentRef.current].transpose;
+      const written = rounded + tr;
       const c = Math.round((rawMidi - rounded) * 100);
       if (rounded === lastRef.current) { stableRef.current++; }
       else { stableRef.current = 1; lastRef.current = rounded; }
@@ -594,9 +555,7 @@ function App() {
             setNote(prev => pickRandom(p, prev));
             setFeedback(null); setDetWritten(null); setCents(null); setAnimClass("");
             stableRef.current = 0; lastRef.current = null; lockRef.current = false;
-          } else {
-            lockRef.current = false; stableRef.current = 0; lastRef.current = null;
-          }
+          } else { lockRef.current = false; stableRef.current = 0; lastRef.current = null; }
         }, ok ? 900 : 1800);
       }
     } else { stableRef.current = 0; lastRef.current = null; }
@@ -619,8 +578,8 @@ function App() {
       rafRef.current = requestAnimationFrame(detect);
     } catch (e) {
       alert(lang === "ru"
-        ? "\u0422\u0440\u0435\u0431\u0443\u0435\u0442\u0441\u044F \u0434\u043E\u0441\u0442\u0443\u043F \u043A \u043C\u0438\u043A\u0440\u043E\u0444\u043E\u043D\u0443. \u0420\u0430\u0437\u0440\u0435\u0448\u0438\u0442\u0435 \u0438 \u043F\u043E\u043F\u0440\u043E\u0431\u0443\u0439\u0442\u0435 \u0441\u043D\u043E\u0432\u0430."
-        : "Microphone access is needed. Please allow it and try again.");
+        ? "\u0422\u0440\u0435\u0431\u0443\u0435\u0442\u0441\u044F \u0434\u043E\u0441\u0442\u0443\u043F \u043A \u043C\u0438\u043A\u0440\u043E\u0444\u043E\u043D\u0443."
+        : "Microphone access is needed.");
     }
   }, [detect, lang]);
 
@@ -642,7 +601,6 @@ function App() {
   const oct = Math.floor(note / 12) - 1;
   const pct = total > 0 ? Math.round((correct / total) * 100) : 0;
   const noteColor = feedback === "correct" ? "var(--correct)" : feedback === "wrong" ? "var(--wrong)" : "var(--text)";
-
   const shouldReveal = feedback != null && !showName;
 
   let fbText = ""; let fbClass = "waiting";
@@ -654,22 +612,23 @@ function App() {
     const expected = showName ? "" : ` (${name})`;
     fbText = `${t.youPlayed} ${played}${expected}` + (cents != null && cents !== 0 ? ` (${cents > 0 ? "+" : ""}${cents}\u00A2)` : "");
     fbClass = "wrong";
-  } else if (listening) {
-    fbText = t.play;
-  } else {
-    fbText = t.pressStart;
-  }
+  } else if (listening) { fbText = t.play; }
+  else { fbText = t.pressStart; }
 
   return (
     <>
       <div className="header">
-        <h1>Sax Trainer</h1>
+        <h1>Note Trainer</h1>
         <div className="lang-toggle">
           <button className={`lang-btn ${lang === "en" ? "active" : ""}`} onClick={() => changeLang("en")}>EN</button>
           <button className={`lang-btn ${lang === "ru" ? "active" : ""}`} onClick={() => changeLang("ru")}>RU</button>
         </div>
       </div>
-      <div className="subtitle">{t.subtitle}</div>
+      <select className="instrument-select" value={instrument} onChange={e => changeInstrument(e.target.value)}>
+        {Object.entries(INSTRUMENTS).map(([key, val]) => (
+          <option key={key} value={key}>{val[lang]}</option>
+        ))}
+      </select>
 
       <div className={`card ${animClass}`}>
         <div className="options-row">
@@ -700,10 +659,7 @@ function App() {
 
         {listening && (
           <div className="mic-bar-wrap">
-            <div className="mic-bar" style={{
-              width: `${level * 100}%`,
-              opacity: level > 0.08 ? 1 : 0.3,
-            }} />
+            <div className="mic-bar" style={{ width: `${level * 100}%`, opacity: level > 0.08 ? 1 : 0.3 }} />
           </div>
         )}
       </div>
@@ -726,22 +682,10 @@ function App() {
 
       {total > 0 && (
         <div className="stats">
-          <div className="stat">
-            <div className="stat-val">{streak}</div>
-            <div className="stat-label">{t.streak}</div>
-          </div>
-          <div className="stat">
-            <div className="stat-val">{best}</div>
-            <div className="stat-label">{t.best}</div>
-          </div>
-          <div className="stat">
-            <div className="stat-val">{pct}%</div>
-            <div className="stat-label">{t.accuracy}</div>
-          </div>
-          <div className="stat">
-            <div className="stat-val">{correct}/{total}</div>
-            <div className="stat-label">{t.score}</div>
-          </div>
+          <div className="stat"><div className="stat-val">{streak}</div><div className="stat-label">{t.streak}</div></div>
+          <div className="stat"><div className="stat-val">{best}</div><div className="stat-label">{t.best}</div></div>
+          <div className="stat"><div className="stat-val">{pct}%</div><div className="stat-label">{t.accuracy}</div></div>
+          <div className="stat"><div className="stat-val">{correct}/{total}</div><div className="stat-label">{t.score}</div></div>
         </div>
       )}
     </>
